@@ -1,10 +1,3 @@
-from .models import Book
-from rest_framework.response import Response
-from rest_framework import status, generics
-from rest_framework.exceptions import ValidationError
-from . import serializers
+from django.shortcuts import render
 
-
-class BooksViewSet(generics.ListAPIView):
-    queryset = Book.objects.all()
-    serializer_class = serializers.BooksSerializer 
+# Create your views here.

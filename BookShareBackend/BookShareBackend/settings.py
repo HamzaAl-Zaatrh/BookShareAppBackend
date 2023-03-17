@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'user_app.apps.UserAppConfig',
     'core.apps.CoreConfig',
     'rest_framework',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -110,7 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Amman'
 
 USE_I18N = True
 
@@ -129,3 +130,21 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
+# Because we created a custom user model
+AUTH_USER_MODEL = 'user_app.User'
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
+
+# SMTP Email Backend Configuration for Gmail
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587  # the default SMTP port for secure connections is 587
+EMAIL_USE_TLS = True  # use Transport Layer Security to secure connection
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+EMAIL_FROM = config("EMAIL_FROM")
