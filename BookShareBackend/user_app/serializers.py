@@ -1,16 +1,21 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from django.conf import settings
 
 User = get_user_model()
 
+
 class RegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    confirm_password = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    confirm_password = serializers.CharField(
+        style={'input_type': 'password'}, write_only=True)
     # user_image_url = serializers.ImageField(required=False)
 
     class Meta:
         model = User
-        fields = ['email', 'first_name', 'last_name', 'phone_number', 'address',  'password', 'confirm_password']
+        fields = ['email', 'first_name', 'last_name', 'phone_number',
+                  'address',  'password', 'confirm_password']
         extra_kwargs = {
             'password': {'write_only': True}
         }
@@ -38,7 +43,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
         account.save()
         return account
-    
+
     # def create(self, validated_data):
     #     user = User.objects.create_user(
     #         email=validated_data['email'],
@@ -68,62 +73,64 @@ class RegistrationSerializer(serializers.ModelSerializer):
 #         return super().update(instance, validated_data)
 
 
-# class PasswordResetSerializer(serializers.Serializer):
-#     email = serializers.EmailField()
+class PasswordResetSerializer(serializers.Serializer):
+    email = serializers.EmailField()
 
-#     def validate_email(self, value):
-#         """
-#         Check that the email is registered
-#         """
-#         try:
-#             User.objects.get(email=value)
-#         except User.DoesNotExist:
-#             raise serializers.ValidationError(
-#                 'There is no user registered with this email address'
-#             )
-#         return value
+    def validate_email(self, value):
+        """
+        Check that the email is registered
+        """
+        try:
+            User.objects.get(email=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError(
+                'There is no user registered with this email address'
+            )
+        return value
 
-#     def send_password_reset_email(self):
-#         email = self.validated_data['email']
-#         user = User.objects.get(email=email)
+    def send_password_reset_email(self):
+        email = self.validated_data['email']
+        user = User.objects.get(email=email)
 
-#         # Generate password reset token
-#         user.generate_verification_token()
-#         user.save()
+        # Generate password reset token
+        user.generate_verification_token()
+        user.save()
 
-#         # Send password reset email
-#         subject = 'Password Reset Request'
-#         message = f'Hi {user.first_name},\n\nYou have requested to reset your password. Please click on the following link to reset your password: http://localhost:8000/user/password-reset/{user.verification_token}/\n\nBest regards,\nTeam'
-#         from_email = settings.EMAIL_FROM
-#         recipient_list = [user.email]
-#         send_mail(subject, message, from_email, recipient_list)
+        # Send password reset email
+        subject = 'Password Reset Request'
+        message = f'Hi {user.get_full_name()},\n\nYou have requested to reset your password. Please click on the following link to reset your password: http://127.0.0.1:8000/account/password-reset/{user.verification_token}/\n\nBest regards,\nBookShare Team'
+        from_email = settings.EMAIL_FROM
+        recipient_list = [user.email]
+        send_mail(subject, message, from_email, recipient_list)
 
 
-# class PasswordResetConfirmSerializer(serializers.Serializer):
-#     password = serializers.CharField(max_length=128)
-#     verification_token = serializers.CharField(max_length=64)
-#     def validate_verification_token(self, value):
-#         """
-#         Check that the verification token is valid
-#         """
-#         try:
-#             user = User.objects.get(verification_token=value)
-#         except User.DoesNotExist:
-#             raise serializers.ValidationError(
-#                 'Invalid verification token'
-#             )
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    password = serializers.CharField(max_length=128)
+    verification_token = serializers.CharField(max_length=64)
 
-#         if not user.verification_token:
-#             raise serializers.ValidationError(
-#                 'Invalid verification token'
-#             )
+    def validate_verification_token(self, value):
+        """
+        Check that the verification token is valid
+        """
+        try:
+            user = User.objects.get(verification_token=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError(
+                'Invalid verification token'
+            )
 
-#         return value
+        if not user.verification_token:
+            raise serializers.ValidationError(
+                'Invalid verification token'
+            )
 
-#     def save(self):
-#         user = User.objects.get(verification_token=self.validated_data['verification_token'])
-#         user.set_password(self.validated_data['password'])
-#         user.verification_token = None
-#         user.save()
+        return value
 
-#         return user
+    def save(self):
+        user = User.objects.get(
+            verification_token=self.validated_data['verification_token'])
+        user.set_password(self.validated_data['password'])
+        user.verification_token = None
+        user.save()
+
+        return user

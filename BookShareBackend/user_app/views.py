@@ -36,11 +36,11 @@ def registration_view(request):
     serializer = serializers.RegistrationSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
-    
+
     # send verification email
     user.generate_verification_token()
-    subject = 'Verify Your Email'
-    message = f'Hi {user.first_name},\n\nPlease click on the link to verify your email: {request.build_absolute_uri("/account/verify-email/")}{user.verification_token}/\n\nBest,\nMySite Team'
+    subject = 'Verify Your Email - BookShare'
+    message = f'Hi {user.get_full_name()},\n\nPlease click on the link to verify your email: {request.build_absolute_uri(" ")}{user.verification_token}/\n\nBest regards,\nBookShare Team'
     from_email = settings.EMAIL_FROM
     recipient_list = [user.email]
     send_mail(subject, message, from_email, recipient_list)
@@ -48,21 +48,31 @@ def registration_view(request):
     return Response({'success': 'Registration successful. Please check your email to verify your account.'}, status=status.HTTP_201_CREATED)
 
 
-# @api_view(['POST'])
-# @permission_classes((permissions.AllowAny,))
-# def reset_password(request):
-#     email = request.data.get('email')
-#     if not email:
-#         return Response({'error': 'Please provide an email address'}, status=status.HTTP_400_BAD_REQUEST)
+class PasswordResetView(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = serializers.PasswordResetSerializer
 
-#     user = get_object_or_404(User, email=email)
-#     user.generate_verification_token()
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-#     # send password reset email
-#     subject = 'Reset Your Password'
-#     message = f'Hi {user.first_name},\n\nPlease click on the link to reset your password: {request.build_absolute_uri("/reset-password/")}{user.verification_token}/\n\nBest,\nMySite Team'
-#     from_email = settings.EMAIL_FROM
-#     recipient_list = [user.email]
-#     send_mail(subject, message, from_email, recipient_list)
+        # Send password reset email
+        serializer.send_password_reset_email()
 
-#     return Response({'success': 'Password reset instructions have been sent to your email address.'}, status=status.HTTP_200_OK)
+        return Response(
+            {'detail': 'Password reset email has been sent'},
+            status=status.HTTP_200_OK
+        )
+
+class PasswordResetConfirmView(generics.GenericAPIView):
+    serializer_class = serializers.PasswordResetConfirmSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {'detail': 'Password has been reset'},
+            status=status.HTTP_200_OK
+        )

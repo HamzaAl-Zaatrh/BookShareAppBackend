@@ -1,8 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-# import uuid
 import hashlib
-# import binascii
+from django.contrib.auth.hashers import make_password
 import os
 from django.conf import settings
 from django.db.models.signals import post_save
@@ -56,9 +55,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     books = models.ManyToManyField(Book, blank=True, through=UserBook, through_fields=(
         'book_owner_id', 'book_id'), related_name='users')
     date_registered = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=False) # We must verify the email
+    is_active = models.BooleanField(default=False)  # We must verify the email
     is_staff = models.BooleanField(default=False)
-    verification_token = models.CharField(max_length=64, null=True, blank=True) # Field to store verification token
+    # Field to store verification token
+    verification_token = models.CharField(max_length=64, null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
@@ -82,6 +82,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         Returns the user's full name.
         """
         return f"{self.first_name} {self.last_name}"
+
+    def set_password(self, raw_password):
+        """
+        Sets the user's password to the given raw password after hashing it.
+        """
+        self.password = make_password(raw_password)
+        self.save()
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
