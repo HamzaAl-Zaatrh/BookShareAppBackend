@@ -44,13 +44,14 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    # 'email' must be unique because it is named as the 'USERNAME_FIELD'
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     address = models.CharField(max_length=100, blank=True, null=True)
     user_image_url = models.ImageField(
-        upload_to=upload_to, blank=True, null=True)
+        upload_to=upload_to, blank=True, null=True, default="default_user.png")
     about = models.TextField(blank=True, null=True)
     books = models.ManyToManyField(Book, blank=True, through=UserBook, through_fields=(
         'book_owner_id', 'book_id'), related_name='users')

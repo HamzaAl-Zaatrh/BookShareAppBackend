@@ -44,27 +44,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
         account.save()
         return account
 
-    # def create(self, validated_data):
-    #     user = User.objects.create_user(
-    #         email=validated_data['email'],
-    #         first_name=validated_data['first_name'],
-    #         last_name=validated_data['last_name'],
-    #         password=validated_data['password']
-    #     )
-
-    #     user.generate_verification_token()
-    #     user.save()
-
-    #     # Send verification email
-    #     subject = 'Verify your email address'
-    #     message = f'Hi {user.first_name},\n\nThank you for registering in our website. Please verify your email address by clicking on the following link: http://localhost:8000/user/verify-email/{user.verification_token}/\n\nBest regards,\nTeam'
-    #     from_email = settings.EMAIL_FROM
-    #     recipient_list = [user.email]
-    #     send_mail(subject, message, from_email, recipient_list)
-
-    #     return user
-    ###########################################################################################
-
 #     def update(self, instance, validated_data):
 #         if 'password' in validated_data:
 #             password = validated_data.pop('password')

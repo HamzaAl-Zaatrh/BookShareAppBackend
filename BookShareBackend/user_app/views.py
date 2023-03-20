@@ -8,9 +8,33 @@ from django.core.mail import send_mail
 from django.conf import settings
 from . import serializers
 from django.shortcuts import get_object_or_404
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.serializers import ValidationError
 
 
 User = get_user_model()
+
+
+class CustomAuthToken(ObtainAuthToken):
+
+    def post(self, request, *args, **kwargs):
+        username = request.data["username"]
+
+        if not User.objects.filter(email=username).exists():
+            return Response({'error': 'email not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.serializer_class(
+            data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({
+            'token': token.key,
+            'user_id': user.pk,
+            'email': user.email,
+            'user_image_url': f"{request.build_absolute_uri('/media/')}{str(user.user_image_url)}"
+        })
 
 
 @api_view(['POST'])
@@ -40,7 +64,7 @@ def registration_view(request):
     # send verification email
     user.generate_verification_token()
     subject = 'Verify Your Email - BookShare'
-    message = f'Hi {user.get_full_name()},\n\nPlease click on the link to verify your email: {request.build_absolute_uri(" ")}{user.verification_token}/\n\nBest regards,\nBookShare Team'
+    message = f'Hi {user.get_full_name()},\n\nPlease click on the link to verify your email: {request.build_absolute_uri("/account/verify-email/")}{user.verification_token}/\n\nBest regards,\nBookShare Team'
     from_email = settings.EMAIL_FROM
     recipient_list = [user.email]
     send_mail(subject, message, from_email, recipient_list)
@@ -63,6 +87,7 @@ class PasswordResetView(generics.GenericAPIView):
             {'detail': 'Password reset email has been sent'},
             status=status.HTTP_200_OK
         )
+
 
 class PasswordResetConfirmView(generics.GenericAPIView):
     serializer_class = serializers.PasswordResetConfirmSerializer
