@@ -29,11 +29,17 @@ class CustomAuthToken(ObtainAuthToken):
         user = serializer.validated_data['user']
 
         token, created = Token.objects.get_or_create(user=user)
+
+        # Build image URL
+        image_url = None
+        if user.user_image_url:
+            image_url = request.build_absolute_uri(user.user_image_url.url)
+
         return Response({
             'token': token.key,
             'user_id': user.pk,
             'email': user.email,
-            'user_image_url': f"{request.build_absolute_uri('/media/')}{str(user.user_image_url)}"
+            'user_image_url': image_url
         })
 
 
