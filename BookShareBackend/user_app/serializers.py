@@ -2,8 +2,66 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.conf import settings
+from core.models import UserBook
 
 User = get_user_model()
+
+
+class ChangePasswordSerializer(serializers.ModelSerializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(
+        style={'input_type': 'password'}, write_only=True)
+    confirm_new_password = serializers.CharField(
+        style={'input_type': 'password'}, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['current_password', 'new_password', 'confirm_new_password']
+
+    def save(self):
+        user = self.context['request'].user
+        current_password = self.validated_data['current_password']
+        new_password = self.validated_data['new_password']
+        confirm_new_password = self.validated_data['confirm_new_password']
+
+        if new_password != confirm_new_password:
+            raise serializers.ValidationError(
+                {'error': 'New password and confirm new password must be the same'})
+
+        if not user.check_password(current_password):
+            raise serializers.ValidationError(
+                {'error': 'current password is incorrect'})
+
+        user.set_password(new_password)
+        user.save()
+
+        # Send password change email
+        subject = 'Password changed successfully'
+        message = f'Hi {user.get_full_name()},\n\nYour password has been changed successfully.\n\nBest regards,\nBookShare Team'
+        from_email = settings.EMAIL_FROM
+        recipient_list = [user.email]
+        send_mail(subject, message, from_email, recipient_list)
+
+        return user
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    email = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'phone_number',
+                  'address', 'user_image_url', 'about', 'books']
+
+        extra_kwargs = {
+            'books': {'read_only': True},
+            'email': {'read_only': True}
+        }
+
+    def validate(self, data):
+        if not data.get('user_image_url'):
+            data['user_image_url'] = 'default_user.png'
+        return data
 
 
 class RegistrationSerializer(serializers.ModelSerializer):

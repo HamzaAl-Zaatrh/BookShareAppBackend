@@ -10,9 +10,29 @@ from . import serializers
 from django.shortcuts import get_object_or_404
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.serializers import ValidationError
+from .permissions import *
+from rest_framework.permissions import IsAuthenticated
 
 
 User = get_user_model()
+
+
+class ChangePassword(generics.UpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = User.objects.all()
+    serializer_class = serializers.ChangePasswordSerializer
+
+    def put(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
+
+
+class ProfileDetail(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated & IsOwnerOrReadOnly]
+    queryset = User.objects.all()
+    serializer_class = serializers.ProfileSerializer
 
 
 class CustomAuthToken(ObtainAuthToken):

@@ -30,12 +30,13 @@ class Book(models.Model):
     def __str__(self):
         return self.book_name
 
+
 class UserBook(models.Model):
     book_owner_id = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='owned_book')
     book_id = models.ForeignKey(Book, on_delete=models.CASCADE)
     book_image_url = models.ImageField(
-        upload_to=upload_to, blank=True, null=True)
+        upload_to=upload_to, blank=True, null=True, default="default_book.png")
     status = models.BooleanField(default=True)
     borrowed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, blank=True, null=True, related_name='borrowed_book')
