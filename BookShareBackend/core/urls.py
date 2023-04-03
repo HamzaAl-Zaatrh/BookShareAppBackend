@@ -5,7 +5,7 @@ from . import views
 urlpatterns = [
     path('list/', views.BookUserList.as_view(), name='book_user_list'),
 
-    path('book/', views.BookSearch.as_view(), name='book_search'),
+    path('book-search/', views.BookSearch.as_view(), name='book_search'),
     path('categories/', views.CategoriesView.as_view(), name='get_categories'),
     path('add-new/', views.AddNewBookView.as_view(), name='add_book'),
     
@@ -15,4 +15,9 @@ urlpatterns = [
     path('library/<int:pk>/', views.LibraryBooksList.as_view(), name='library_books_list'),
     path('library/<int:pk>/create-rating/', views.UserRatingCreateView.as_view(), name='library_create_rating'),
     path('library/<int:pk>/get-rating/', views.UserRatingDetailView.as_view(), name='library_get_rating'),
+
+    path('book/<int:pk>/', views.BookDetails.as_view(), name='book_details'),
+    path('book/<int:pk>/create-rating/', views.BookRatingCreateView.as_view(), name='book_create_rating'),
+    path('book/<int:pk>/get-rating/', views.BookRatingDetailView.as_view(), name='book_get_rating'),
+    path('book/<int:pk>/same-book/', views.SameBookView.as_view(), name='same_book'),
 ]

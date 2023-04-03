@@ -218,3 +218,84 @@ class UserRatingCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+############################## Book Visitor Page ##################################
+
+class BookDetails(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = UserBook.objects.all()
+    serializer_class = serializers.UserBookSerializer
+
+
+class SameBookView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = UserBook.objects.all()
+    serializer_class = serializers.UserBookSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        pk = self.kwargs.get('pk') 
+        # Get all books that are similar to this one but don't show the book we're on and don't show the book if the user owns it
+        similar_books = UserBook.objects.filter(book_id=UserBook.objects.get(pk=pk).book_id).exclude(id=pk).exclude(book_owner_id=user)
+        if similar_books.exists():
+            return similar_books
+        else:
+            return UserBook.objects.none()
+
+
+class BookRatingDetailView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = BookRating.objects.all()
+    serializer_class = serializers.BookRatingSerializer
+
+    def get(self, request, *args, **kwargs):
+        user_book_id = self.kwargs.get('pk')  # Get the pk parameter from the URL
+        pk = UserBook.objects.get(pk=user_book_id).book_id.id
+        book_rater_id = request.user.id
+        book_rating_qs = BookRating.objects.filter(
+            book_id=pk, book_rater_id=book_rater_id)
+
+        if book_rating_qs.exists():
+            book_rating = book_rating_qs.first()
+            serializer = self.serializer_class(book_rating)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            book_id = get_object_or_404(Book, pk=pk)
+            data = {'book_rating': 0,
+                    'avg_rating': book_id.calculate_avg_rating(),
+                    'number_rating': book_id.calculate_number_rating()}
+            return Response(data, status=status.HTTP_200_OK)
+            # return Response({'detail': 'The requested rating does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class BookRatingCreateView(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = UserRating.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        user_book_id = self.kwargs.get('pk')  # Get the pk parameter from the URL
+        pk = UserBook.objects.get(pk=user_book_id).book_id.id
+        book_rater_id = request.user.id
+        rating = request.data.get('rating')
+
+        # Check if BookRating object already exists
+        book_rating_qs = BookRating.objects.filter(
+            book_id=pk, book_rater_id=book_rater_id)
+        if book_rating_qs.exists():
+            book_rating = book_rating_qs.first()
+            book_rating.book_rating = rating
+            book_rating.save()
+            serializer = serializers.BookRatingSerializer(book_rating)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Create BookRating object
+        book_rating_data = {
+            'book_id': pk,
+            'book_rater_id': book_rater_id,
+            'book_rating': rating
+        }
+        serializer = serializers.BookRatingSerializer(data=book_rating_data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

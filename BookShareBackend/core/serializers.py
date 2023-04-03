@@ -72,3 +72,16 @@ class UserRatingSerializer(serializers.ModelSerializer):
         model = UserRating
         # fields = '__all__'
         exclude = ['id']
+
+
+####################################### Book Visitor Page #########################################
+class BookRatingSerializer(serializers.ModelSerializer):
+    avg_rating = serializers.FloatField(
+        source='book_id.calculate_avg_rating', read_only=True)
+    number_rating = serializers.IntegerField(
+        source='book_id.calculate_number_rating', read_only=True)
+
+    class Meta:
+        model = BookRating
+        # fields = '__all__'
+        exclude = ['id', 'created_at', 'updated_at']
