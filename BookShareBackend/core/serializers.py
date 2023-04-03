@@ -13,13 +13,14 @@ class BookSerializer(serializers.ModelSerializer):
     avg_rating = serializers.StringRelatedField(source='calculate_avg_rating')
     number_rating = serializers.StringRelatedField(
         source='calculate_number_rating')
-
-    # categories = CategorySerializer(many=True)
+    categories_name = serializers.StringRelatedField(source='categories', many=True, read_only=True)
 
     class Meta:
         model = Book
         exclude = ['owners']
-
+        extra_kwargs = {
+            'categories': {'write_only': True}
+        }
 
 # use for list book
 class UserBookSerializer(serializers.ModelSerializer):
