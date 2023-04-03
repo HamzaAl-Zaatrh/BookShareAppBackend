@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
-from core.models import Book, UserBook
+from core.models import Book, UserBook, UserRating
 
 
 def upload_to(instance, filename):
@@ -90,6 +90,29 @@ class User(AbstractBaseUser, PermissionsMixin):
         """
         self.password = make_password(raw_password)
         self.save()
+    
+    def calculate_avg_rating(self):
+        # Get all UserBook objects for this book
+        user_ratings = UserRating.objects.filter(user_rated_id=self)
+
+        # Calculate the average rating for this book
+        total_rating = sum(user_rating.user_rating for user_rating in user_ratings)
+        num_ratings = user_ratings.count()
+        if num_ratings > 0:
+            avg_rating = total_rating / num_ratings
+        else:
+            avg_rating = 0
+
+        return avg_rating
+
+    def calculate_number_rating(self):
+        # Get all UserBook objects for this book
+        user_ratings = UserRating.objects.filter(user_rated_id=self)
+
+        # Get the number of ratings for this book
+        num_ratings = user_ratings.count()
+
+        return num_ratings
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)

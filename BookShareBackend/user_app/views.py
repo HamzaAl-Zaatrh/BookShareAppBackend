@@ -17,6 +17,12 @@ from rest_framework.permissions import IsAuthenticated
 User = get_user_model()
 
 
+class ProfileInfo(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = User.objects.all()
+    serializer_class = serializers.ProfileInfoSerializer
+
+
 class ChangePassword(generics.UpdateAPIView):
     permission_classes = [IsAuthenticated]
     queryset = User.objects.all()

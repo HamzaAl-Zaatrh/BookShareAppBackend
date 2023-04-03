@@ -7,6 +7,27 @@ from core.models import UserBook
 User = get_user_model()
 
 
+class ProfileInfoSerializer(serializers.ModelSerializer):
+    full_name = serializers.StringRelatedField(source='get_full_name')
+    avg_rating = serializers.StringRelatedField(source='calculate_avg_rating')
+    number_rating = serializers.StringRelatedField(
+        source='calculate_number_rating')
+
+    class Meta:
+        model = User
+        fields = ['id', 'full_name', 'avg_rating', 'number_rating', 'email', 'phone_number',
+                  'address', 'user_image_url', 'about']
+
+
+class UserInfoSerializer(serializers.ModelSerializer):
+    """To get his full name, id, and his image"""
+    full_name = serializers.StringRelatedField(source='get_full_name')
+
+    class Meta:
+        model = User
+        fields = ['id', 'full_name', 'user_image_url']
+
+
 class ChangePasswordSerializer(serializers.ModelSerializer):
     current_password = serializers.CharField(write_only=True)
     new_password = serializers.CharField(

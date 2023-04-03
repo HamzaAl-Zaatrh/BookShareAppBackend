@@ -13,4 +13,6 @@ urlpatterns = [
     path('profile/<int:pk>/', views.ProfileDetail.as_view(), name='profile_details'),
     path('change-password/',
          views.ChangePassword.as_view(), name='change_password'),
+     # For Library Visitor Page
+     path('<int:pk>/', views.ProfileInfo.as_view(), name='profile_info'),
 ]

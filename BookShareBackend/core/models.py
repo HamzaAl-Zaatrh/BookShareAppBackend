@@ -1,6 +1,7 @@
 from django.db import models
 from django.core import validators
 from django.conf import settings
+from django.db import transaction
 
 
 def upload_to(instance, filename):
@@ -21,14 +22,36 @@ class Book(models.Model):
     description = models.TextField(max_length=200)
     ISBN = models.IntegerField()
     year = models.IntegerField()
-    avg_rating = models.FloatField(default=0)
-    number_rating = models.IntegerField(default=0)
     categories = models.ManyToManyField(Category, blank=True)
     owners = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, through='UserBook', through_fields=(
         'book_id', 'book_owner_id'), related_name='books_owned')
 
     def __str__(self):
         return self.book_name
+
+    def calculate_avg_rating(self):
+        # Get all UserBook objects for this book
+        book_ratings = BookRating.objects.filter(book_id=self)
+
+        # Calculate the average rating for this book
+        total_rating = sum(
+            book_rating.book_rating for book_rating in book_ratings)
+        num_ratings = book_ratings.count()
+        if num_ratings > 0:
+            avg_rating = total_rating / num_ratings
+        else:
+            avg_rating = 0
+
+        return avg_rating
+
+    def calculate_number_rating(self):
+        # Get all UserBook objects for this book
+        book_ratings = BookRating.objects.filter(book_id=self)
+
+        # Get the number of ratings for this book
+        num_ratings = book_ratings.count()
+
+        return num_ratings
 
 
 class UserBook(models.Model):
@@ -74,6 +97,9 @@ class UserRating(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ratings_given')
     user_rating = models.IntegerField(
         validators=[validators.MinValueValidator(0), validators.MaxValueValidator(10)])
+    
+    class Meta:
+        unique_together = ('user_rated_id', 'user_rater_id')
 
     def __str__(self):
         return f'rated: {self.user_rated_id.get_full_name()} | rater: {self.user_rater_id.get_full_name()} | rating: {self.user_rating}'
