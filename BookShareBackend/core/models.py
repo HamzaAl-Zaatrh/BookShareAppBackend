@@ -107,10 +107,10 @@ class UserRating(models.Model):
 
 class Notification(models.Model):
     sender_id = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_notifications')
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sender')
     receiver_id = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_notifications')
-    book_id = models.ForeignKey(Book, on_delete=models.CASCADE)
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='receiver')
+    user_book_id = models.ForeignKey(UserBook, on_delete=models.CASCADE, null=True)
     type = models.CharField(max_length=20)
     message = models.TextField(max_length=200)
     created_at = models.DateTimeField(auto_now_add=True)
