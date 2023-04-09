@@ -86,3 +86,14 @@ class BookRatingSerializer(serializers.ModelSerializer):
         model = BookRating
         # fields = '__all__'
         exclude = ['id', 'created_at', 'updated_at']
+
+############################## Notifications functionality ##################################
+
+class NotificationsSerializer(serializers.ModelSerializer):
+    sender_name = serializers.StringRelatedField(source='sender_id.get_full_name', read_only=True)
+    receiver_name = serializers.StringRelatedField(source='receiver_id.get_full_name', read_only=True)
+    book_name = serializers.StringRelatedField(source='user_book_id.book_id.book_name', read_only=True)
+    time_since_created = serializers.StringRelatedField(read_only=True)
+    class Meta:
+        model = Notification
+        exclude = ['created_at']

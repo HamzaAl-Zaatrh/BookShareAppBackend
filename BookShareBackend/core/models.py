@@ -2,6 +2,8 @@ from django.db import models
 from django.core import validators
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
+from datetime import timedelta
 
 
 def upload_to(instance, filename):
@@ -112,8 +114,23 @@ class Notification(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='receiver')
     user_book_id = models.ForeignKey(UserBook, on_delete=models.CASCADE, null=True)
     type = models.CharField(max_length=20)
-    message = models.TextField(max_length=200)
+    message = models.TextField(max_length=200, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.type
+
+    def time_since_created(self):
+        now = timezone.now()
+        time_difference = now - self.created_at
+
+        if time_difference < timedelta(minutes=1):
+            return f"{time_difference.seconds} s"
+        elif time_difference < timedelta(hours=1):
+            return f"{int(time_difference.seconds/60)} m"
+        elif time_difference < timedelta(days=1):
+            return f"{int(time_difference.seconds/3600)} h"
+        elif time_difference < timedelta(weeks=1):
+            return f"{time_difference.days} d"
+        else:
+            return f"{int(time_difference.days/7)} w"

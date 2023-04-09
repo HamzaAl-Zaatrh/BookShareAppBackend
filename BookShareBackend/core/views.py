@@ -235,9 +235,10 @@ class SameBookView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        pk = self.kwargs.get('pk') 
+        pk = self.kwargs.get('pk')
         # Get all books that are similar to this one but don't show the book we're on and don't show the book if the user owns it
-        similar_books = UserBook.objects.filter(book_id=UserBook.objects.get(pk=pk).book_id).exclude(id=pk).exclude(book_owner_id=user)
+        similar_books = UserBook.objects.filter(book_id=UserBook.objects.get(
+            pk=pk).book_id).exclude(id=pk).exclude(book_owner_id=user)
         if similar_books.exists():
             return similar_books
         else:
@@ -250,7 +251,8 @@ class BookRatingDetailView(generics.RetrieveAPIView):
     serializer_class = serializers.BookRatingSerializer
 
     def get(self, request, *args, **kwargs):
-        user_book_id = self.kwargs.get('pk')  # Get the pk parameter from the URL
+        # Get the pk parameter from the URL
+        user_book_id = self.kwargs.get('pk')
         pk = UserBook.objects.get(pk=user_book_id).book_id.id
         book_rater_id = request.user.id
         book_rating_qs = BookRating.objects.filter(
@@ -274,7 +276,8 @@ class BookRatingCreateView(generics.CreateAPIView):
     queryset = UserRating.objects.all()
 
     def post(self, request, *args, **kwargs):
-        user_book_id = self.kwargs.get('pk')  # Get the pk parameter from the URL
+        # Get the pk parameter from the URL
+        user_book_id = self.kwargs.get('pk')
         pk = UserBook.objects.get(pk=user_book_id).book_id.id
         book_rater_id = request.user.id
         rating = request.data.get('rating')
@@ -299,3 +302,95 @@ class BookRatingCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+############################## Notifications functionality ##################################
+# two form for the JSON request:
+############### (1) ###################
+# {
+#     "user_book_id": 1,
+#     "type": "borrow_request",
+#     "message": ""
+# }
+############### (2) ###################
+# {
+#      "user_book_id": 1,
+#     "receiver_id": 2,
+#     "type": "accept/reject",
+#     "message": "you can use this number: 0788888888 to contact with me"
+# }
+
+class NotificationRequest(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = Notification.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        type = request.data.get('type')
+        user_book_qs = UserBook.objects.filter(
+            id=request.data.get('user_book_id'))
+
+        if not user_book_qs.exists():
+            return Response({'detail': 'The Book does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if (type == 'accept' or type == 'reject') and not (user_book_qs.first().book_owner_id.id == request.user.id):
+            return Response({'detail': 'You do not have permission to perform this action.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if type == 'borrow_request' and not user_book_qs.first().status:
+            return Response({'detail': 'This book is already borrowed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        notification_data = {}
+
+        if type == 'borrow_request':
+            notification_data = {
+                'sender_id': request.user.id,
+                'receiver_id': user_book_qs.first().book_owner_id.id,
+                'user_book_id': user_book_qs.first().id,
+                'type': type,
+                'message': ''
+            }
+        else:
+            notification_data = {
+                'sender_id': request.user.id,
+                'receiver_id': request.data.get('receiver_id'),
+                'user_book_id': user_book_qs.first().id,
+                'type': type,
+                'message': request.data.get('message')
+            }
+
+        # if type == 'accept' we must modify the 'status' and 'borrowed_by' fields in the UserBook model
+        if type == 'accept':
+            user_book = user_book_qs.first()
+            user_book.status = False
+            user_book.borrowed_by = User.objects.get(
+                id=request.data.get('receiver_id'))
+            user_book.save()
+
+        notification_serializer = serializers.NotificationsSerializer(
+            data=notification_data)
+        notification_serializer.is_valid(raise_exception=True)
+        notification_serializer.save()
+        return Response(notification_serializer.data, status=status.HTTP_201_CREATED)
+    
+class NotificationList(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = Notification.objects.all()
+    serializer_class = serializers.NotificationsSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return Notification.objects.filter(receiver_id = user)
+    
+class NotificationDestroy(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = Notification.objects.all()
+    serializer_class = serializers.NotificationsSerializer
+
+    def delete(self, request, *args, **kwargs):
+        notification_id = self.kwargs.get('pk')
+        notification = Notification.objects.get(pk=notification_id)
+        if not notification.receiver_id == self.request.user:
+            return Response({'detail': 'You do not have permission to perform this action.'}, status=status.HTTP_403_FORBIDDEN)
+        notification.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+# To get the contact information you can use http://127.0.0.1:8000/account/<sender_id>/
