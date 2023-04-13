@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
+from django.db.models import Count, Avg
 # from .recommender import *
 
 ######################### Home Page (List of all books) with search/Filter/ordering #################
@@ -402,16 +403,16 @@ class NotificationDestroy(generics.DestroyAPIView):
 
 ############################## Recommender functionalities ##################################
 
+## version 1.0
 def get_recommendations(id, user_id):
     # Load UserBooks into a DataFrame
     user_books = pd.DataFrame.from_records(UserBook.objects.all().values(
         'id', 'book_owner_id', 'book_id', 'book_id__book_name', 'book_id__author', 'book_id__categories__category', 'book_image_url'))
+    
     ratings_df = pd.DataFrame.from_records(BookRating.objects.all().values())
 
-    book_rater_id = user_id # set the book_rater_id_id that you want to filter by
     # get all the books rated by this user as a list
-    rated_books = ratings_df.loc[ratings_df['book_rater_id_id'] == book_rater_id, 'book_id_id'].tolist()
-    print(rated_books)
+    rated_books = ratings_df.loc[ratings_df['book_rater_id_id'] == user_id, 'book_id_id'].tolist()
     
     user_books['book_image_url'] = user_books['book_image_url'].apply(lambda x: 'http://127.0.0.1:8000/media/' + x)
 
@@ -424,27 +425,20 @@ def get_recommendations(id, user_id):
         'book_image_url': 'image'
     })
 
-    if not user_books[(user_books['owner_id'] == user_id) & (user_books['id'] == id)].empty:
-        return {'detail': 'Bad request, this book is owned by this user'}
-        # return Response({'detail': 'Bad request, this book is owned by this user'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-    # drop all books that owned by this user
-    user_books = user_books.drop(user_books[user_books['owner_id'] == user_id].index)
-
-    # drop all books that rated by this user
-    user_books = user_books.drop(rated_books)
-
-    # Grouping the data and drop duplicates
+    # Grouping the data (Grouping categories)
+    # lambda function uses the filter() function 
+    # to remove any None values from the set before joining the remaining values with ', '.
     data = user_books.groupby('id').agg({
         'book_id': 'first',
         'owner_id': 'first',
         'title': 'first',
         'author': 'first',
-        'genres': lambda x: ', '.join(set(x)),
+        'genres': lambda x: ', '.join(set(filter(None, x))),
         'image': 'first'
-    }).drop_duplicates(['book_id'], keep='last').reset_index()
+    }).reset_index()
+
+    # get all the books owned by this user as a list
+    owned_books = data.loc[data['owner_id'] == user_id, 'book_id'].tolist()
 
     cleaned_data = data.copy()
 
@@ -477,18 +471,28 @@ def get_recommendations(id, user_id):
     print(cosine_sim)
 
     index = data.index[data['id'] == id][0]
+    same_book_id = data[data['id'] == id]['book_id'].iloc[0]
 
     similarity_series = pd.Series(cosine_sim[index]).sort_values(ascending=False)
     list_index = similarity_series[similarity_series > 0.3].index.tolist()
 
-    list_index.remove(index)
-    recommended_data = []
-    if len(list_index) <= 10:
-        recommended_data = data.iloc[list_index]
-    else:
-        recommended_data = data.iloc[list_index[:10]]
+    recommended_data = data.iloc[list_index]
 
-    # print(recommended_data)
+    # drop the same books
+    recommended_data = recommended_data[~(recommended_data['book_id']==same_book_id)]
+
+    # drop all books that owned by this user
+    recommended_data = recommended_data[~recommended_data['book_id'].isin(owned_books)]
+
+    # drop all books that rated by this user
+    recommended_data = recommended_data[~recommended_data['book_id'].isin(rated_books)]
+    
+    # drop duplicate books
+    recommended_data.drop_duplicates(['book_id'], keep='last', inplace=True)
+
+    # get only first 10 books
+    if recommended_data.shape[0] > 10:
+        recommended_data = recommended_data[:10]
 
     # convert dataframe to dictionary
     # We used the 'records' option in the to_dict() method 
@@ -499,7 +503,6 @@ def get_recommendations(id, user_id):
 class MoreLikeThisView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     queryset = UserBook.objects.all()
-    # serializer_class = serializers.NotificationsSerializer
 
     def get(self, request, *args, **kwargs):
         # Get the pk parameter from the URL
@@ -513,3 +516,88 @@ class MoreLikeThisView(generics.ListAPIView):
         
         data = get_recommendations(user_book_id, user_id)
         return Response(data, status=status.HTTP_200_OK)
+
+
+class RecommendedForYou(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = UserBook.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        user_id = request.user.id
+
+        # We use "order_by('?')" to randomly order the books and only the first 5 books are selected
+        rated_books = BookRating.objects.filter(book_rater_id=user_id, book_rating__gt=6).order_by('?')[:5]
+
+        if rated_books.count() == 0:
+            return Response({'detail': "You need to rate at least 5 books to get our Recommendations."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # List of dictionaries
+        data = []
+        for rated_book in rated_books:
+            # get the id of the book
+            book_id = rated_book.book_id
+            user_book = UserBook.objects.filter(book_id=book_id).first()
+            
+            if user_book:
+                user_book_id = user_book.id
+                # check if there are any recommendations for this book
+                recommendations = get_recommendations(user_book_id, user_id)
+                if recommendations:
+                    for recommendation in recommendations[0:2]:
+                        data.append(recommendation)
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class TopRated(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        # Calculate the average rating and number of ratings for each book
+        books = Book.objects.annotate(
+            avg_rating=Avg('bookrating__book_rating'),
+            num_ratings=Count('bookrating')
+        ).values('id', 'book_name', 'avg_rating', 'num_ratings', 'categories__category')
+
+        books_df = pd.DataFrame.from_records(books)
+
+        books_df = books_df.groupby('id').agg({
+            'book_name': 'first',
+            'avg_rating': 'first',
+            'num_ratings': 'first',
+            'categories__category': lambda x: ', '.join(set(filter(None, x)))
+        }).reset_index()
+
+        # C is the mean rate across the whole books list
+        C = books_df['avg_rating'].mean()
+        # m is the minimum rates required to be listed in the chart
+        # In other words, for a book to feature in the charts, it must have more rates than at least 90% of the books in the list.
+        m = books_df['num_ratings'].quantile(0.9)
+        # We filter out the books that qualify for the chart
+        q_books = books_df.copy().loc[books_df['num_ratings'] >= m]
+
+        def weighted_rating(x, m=m, C=C):
+            v = x['num_ratings']
+            R = x['avg_rating']
+            # Calculation based on the IMDB formula
+            return (v/(v+m) * R) + (m/(m+v) * C)
+        
+        # Define a new feature 'score' and calculate its value with `weighted_rating()`
+        q_books['score'] = q_books.apply(weighted_rating, axis=1)
+        #Sort movies based on score calculated above
+        q_books = q_books.sort_values('score', ascending=False)[:10]
+
+
+        def get_user_book_id(row):
+            userbook = UserBook.objects.filter(book_id=row['id']).first()
+            return userbook.id
+        
+        def get_image(row):
+            userbook = UserBook.objects.filter(book_id=row['id']).first()
+            return 'http://127.0.0.1:8000' + userbook.book_image_url.url
+        
+        q_books['user_book_id'] = q_books.apply(get_user_book_id, axis=1)
+        q_books['image_url'] = q_books.apply(get_image, axis=1)
+
+        q_books_dict = q_books.to_dict('records')
+        return Response(q_books_dict, status=status.HTTP_200_OK)

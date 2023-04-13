@@ -4,6 +4,8 @@ from . import views
 
 urlpatterns = [
     path('list/', views.BookUserList.as_view(), name='book_user_list'),
+    path('recommended-for-you/', views.RecommendedForYou.as_view(), name='recommended_for_you'),
+    path('top-rated/', views.TopRated.as_view(), name='top_rated'),
 
     path('book-search/', views.BookSearch.as_view(), name='book_search'),
     path('categories/', views.CategoriesView.as_view(), name='get_categories'),

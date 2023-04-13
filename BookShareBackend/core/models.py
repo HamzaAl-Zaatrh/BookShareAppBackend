@@ -20,10 +20,10 @@ class Category(models.Model):
 class Book(models.Model):
     book_name = models.CharField(max_length=200)
     author = models.CharField(max_length=30)
-    publisher = models.CharField(max_length=30)
-    description = models.TextField(max_length=200)
-    ISBN = models.IntegerField()
-    year = models.IntegerField()
+    publisher = models.CharField(max_length=30, blank=True, null=True)
+    description = models.TextField(max_length=200, blank=True, null=True)
+    ISBN = models.IntegerField(blank=True, null=True)
+    year = models.IntegerField(blank=True, null=True)
     categories = models.ManyToManyField(Category, blank=True)
     owners = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, through='UserBook', through_fields=(
         'book_id', 'book_owner_id'), related_name='books_owned')
@@ -74,7 +74,7 @@ class UserBook(models.Model):
 
 
 class BookRating(models.Model):
-    book_id = models.ForeignKey(Book, on_delete=models.CASCADE)
+    book_id = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='bookrating')
     book_rater_id = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     book_rating = models.IntegerField(
