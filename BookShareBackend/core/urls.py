@@ -20,6 +20,7 @@ urlpatterns = [
     path('book/<int:pk>/create-rating/', views.BookRatingCreateView.as_view(), name='book_create_rating'),
     path('book/<int:pk>/get-rating/', views.BookRatingDetailView.as_view(), name='book_get_rating'),
     path('book/<int:pk>/same-book/', views.SameBookView.as_view(), name='same_book'),
+    path('book/<int:pk>/more-like/', views.MoreLikeThisView.as_view(), name='more_like_this'),
 
     path('create-notification/', views.NotificationRequest.as_view(), name='create_notification'),
     path('notifications/', views.NotificationList.as_view(), name='list_notifications'),
