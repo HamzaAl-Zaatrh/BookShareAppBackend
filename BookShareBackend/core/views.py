@@ -529,7 +529,8 @@ class RecommendedForYou(generics.ListAPIView):
         rated_books = BookRating.objects.filter(book_rater_id=user_id, book_rating__gt=6).order_by('?')[:5]
 
         if rated_books.count() == 0:
-            return Response({'detail': "You need to rate at least 5 books to get our Recommendations."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': "You need to rate more books to get our Recommendations."}, status=status.HTTP_404_NOT_FOUND)
+            # return Response({'detail': "You need to rate at least 5 books to get our Recommendations."}, status=status.HTTP_404_NOT_FOUND)
         
         # List of dictionaries
         data = []
@@ -545,6 +546,9 @@ class RecommendedForYou(generics.ListAPIView):
                 if recommendations:
                     for recommendation in recommendations[0:2]:
                         data.append(recommendation)
+
+        if not data:
+            return Response({'detail': "We're sorry, but we don't have any book recommendations for you yet."}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(data, status=status.HTTP_200_OK)
 
