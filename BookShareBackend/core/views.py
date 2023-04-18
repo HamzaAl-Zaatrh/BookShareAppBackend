@@ -54,6 +54,7 @@ class BookSearch(generics.ListAPIView):
 
 
 class AddNewBookView(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = serializers.BookSerializer
 
     def post(self, request, *args, **kwargs):
@@ -98,6 +99,83 @@ class AddNewBookView(generics.CreateAPIView):
         book_rating_serializer.save()
 
         return Response({'detail': 'The book add successfully.'}, status=status.HTTP_201_CREATED)
+    
+
+class AddEditBook(generics.CreateAPIView) :
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, *args, **kwargs):
+        user_id = request.user.id
+        book_id = request.data.get('book_id')
+        rating = request.data.get('rating')
+
+        # First we check if the book has rating or not
+        book_rating_qs = BookRating.objects.filter(
+            book_id=book_id, book_rater_id=user_id)
+        if book_rating_qs.exists():
+            book_rating = book_rating_qs.first()
+            book_rating.book_rating = rating
+            book_rating.save()
+        else:
+            # Create BookRating object
+            book_rating_data = {
+                'book_id': book_id,
+                'book_rater_id': user_id,
+                'book_rating': rating
+            }
+            rating_serializer = serializers.BookRatingSerializer(data=book_rating_data)
+            rating_serializer.is_valid(raise_exception=True)
+            rating_serializer.save()
+        
+        # check if a userbook exists or not
+        # if it exists we will edit
+        # You can delete the image field from the request if you don't want to change the image
+        image = request.FILES.get('image')
+        user_book_qs = UserBook.objects.filter(
+            book_id=book_id, book_owner_id=user_id)
+        if user_book_qs.exists():
+            user_book = user_book_qs.first()
+            if image:
+                user_book.book_image_url = image
+                user_book.save()
+            # If you want to delete the image
+            del_image = request.data.get('del_image')
+            if del_image:
+                user_book.book_image_url = 'default_book.png'
+                user_book.save()
+        else:
+            # Create UserBook object for the book owner
+            user_book_data = {
+                'book_owner_id': user_id,
+                'book_id': book_id,
+                'book_image_url': image,
+                'status': True
+            }
+            user_book_serializer = serializers.BookOwnerSerializer(
+                data=user_book_data)
+            user_book_serializer.is_valid(raise_exception=True)
+            user_book_serializer.save()
+
+        # Edit the Book information
+        book = Book.objects.get(id=book_id)
+        book.book_name = request.data.get('book_name')
+        book.author = request.data.get('author')
+        book.publisher = request.data.get('publisher')
+        book.description = request.data.get('description')
+        book.year = request.data.get('year')
+        book.ISBN = request.data.get('ISBN')
+        book.categories.set(request.data.get('categories'))
+        book.save()
+
+        add_flag = request.data.get('add_flag')
+        detail = {}
+        if add_flag:
+            detail = {'detail': 'The Book has been added successfully.'}
+        else:
+            detail = {'detail': 'The Book has been edited successfully.'}
+
+        return Response(detail, status=status.HTTP_200_OK)
+
 
 ########################################### GET categories ########################################
 

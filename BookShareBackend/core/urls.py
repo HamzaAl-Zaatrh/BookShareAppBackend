@@ -9,7 +9,8 @@ urlpatterns = [
 
     path('book-search/', views.BookSearch.as_view(), name='book_search'),
     path('categories/', views.CategoriesView.as_view(), name='get_categories'),
-    path('add-new/', views.AddNewBookView.as_view(), name='add_book'),
+    path('add-new/', views.AddNewBookView.as_view(), name='add_new_book'),
+    path('add-edit/', views.AddEditBook.as_view(), name='add_edit_book'),
     
     path('your-library/', views.YourBooksList.as_view(), name='your_library'),
     path('your-library/<int:pk>/', views.RepostOrDelete.as_view(), name='repost_delete_book'),
