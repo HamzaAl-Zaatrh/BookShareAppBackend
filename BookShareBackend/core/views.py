@@ -522,7 +522,7 @@ def get_recommendations(id, user_id):
 
     # Function to convert all strings to lower case and strip names of spaces
     def clean_data(x):
-        #Check if director exists. If not, return empty string
+        #Check if auther exists. If not, return empty string
         if isinstance(x, str):
             out = str.lower(x.replace(" ", ""))
             output_string = out.replace(',', ' ')
