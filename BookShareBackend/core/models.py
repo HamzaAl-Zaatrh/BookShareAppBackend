@@ -40,7 +40,7 @@ class Book(models.Model):
             book_rating.book_rating for book_rating in book_ratings)
         num_ratings = book_ratings.count()
         if num_ratings > 0:
-            avg_rating = total_rating / num_ratings
+            avg_rating = round(total_rating / num_ratings, 1)
         else:
             avg_rating = 0
 

@@ -99,7 +99,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         total_rating = sum(user_rating.user_rating for user_rating in user_ratings)
         num_ratings = user_ratings.count()
         if num_ratings > 0:
-            avg_rating = total_rating / num_ratings
+            avg_rating = round(total_rating / num_ratings, 1)
         else:
             avg_rating = 0
 
