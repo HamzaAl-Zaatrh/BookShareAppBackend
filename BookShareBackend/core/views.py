@@ -496,23 +496,24 @@ def get_recommendations(id, user_id):
 
     # Renaming the columns
     user_books = user_books.rename(columns={
-        'book_id__book_name': 'title',
+        'id': 'user_book_id',
+        'book_id__book_name': 'book_name',
         'book_owner_id': 'owner_id',
         'book_id__author': 'author',
-        'book_id__categories__category': 'genres',
-        'book_image_url': 'image'
+        'book_id__categories__category': 'categories__category',
+        'book_image_url': 'image_url'
     })
 
     # Grouping the data (Grouping categories)
     # lambda function uses the filter() function 
     # to remove any None values from the set before joining the remaining values with ', '.
-    data = user_books.groupby('id').agg({
+    data = user_books.groupby('user_book_id').agg({
         'book_id': 'first',
         'owner_id': 'first',
-        'title': 'first',
+        'book_name': 'first',
         'author': 'first',
-        'genres': lambda x: ', '.join(set(filter(None, x))),
-        'image': 'first'
+        'categories__category': lambda x: ', '.join(set(filter(None, x))),
+        'image_url': 'first'
     }).reset_index()
 
     # get all the books owned by this user as a list
@@ -531,13 +532,13 @@ def get_recommendations(id, user_id):
             return ''
             
     # Apply clean_data function to your features.
-    features = ['author', 'genres']
+    features = ['author', 'categories__category']
 
     for feature in features:
         cleaned_data[feature] = cleaned_data[feature].apply(clean_data)
 
     def create_metadata(x):
-        return x['author'] + ' ' + x['genres']
+        return x['author'] + ' ' + x['categories__category']
     cleaned_data['metadata'] = cleaned_data.apply(create_metadata, axis=1)
 
     count = CountVectorizer(stop_words='english')
@@ -548,8 +549,8 @@ def get_recommendations(id, user_id):
     print(data)
     print(cosine_sim)
 
-    index = data.index[data['id'] == id][0]
-    same_book_id = data[data['id'] == id]['book_id'].iloc[0]
+    index = data.index[data['user_book_id'] == id][0]
+    same_book_id = data[data['user_book_id'] == id]['book_id'].iloc[0]
 
     similarity_series = pd.Series(cosine_sim[index]).sort_values(ascending=False)
     list_index = similarity_series[similarity_series > 0.3].index.tolist()
@@ -627,6 +628,11 @@ class RecommendedForYou(generics.ListAPIView):
 
         if not data:
             return Response({'detail': "We're sorry, but we don't have any book recommendations for you yet."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # drop the duplicate books
+        df = pd.DataFrame(data)
+        df.drop_duplicates(['book_id'], keep='first', inplace=True)
+        data = df.to_dict('records')
 
         return Response(data, status=status.HTTP_200_OK)
 
