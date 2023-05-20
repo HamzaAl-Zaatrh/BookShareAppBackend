@@ -49,6 +49,13 @@ class BookSearch(generics.ListAPIView):
         user = self.request.user
         # return Book.objects.exclude(owners=user).distinct()
         return Book.objects.exclude(owners=user)
+    
+
+
+class BookGeneralDetails(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = Book.objects.all()
+    serializer_class = serializers.BookSerializer
 
 ################################### add a book page 2 (new) ##########################################
 
@@ -64,7 +71,7 @@ class AddNewBookView(generics.CreateAPIView):
 
         book_serializer = self.get_serializer(data=request.data)
         book_serializer.is_valid(raise_exception=True)
-        book = book_serializer.save()
+        book = book_serializer.save(categories=request.data.get('categories', []))
 
         # Create UserBook object for the book owner
         user_book_data = {
@@ -79,26 +86,17 @@ class AddNewBookView(generics.CreateAPIView):
         user_book_serializer.save()
 
         # Create BookRating object for the book
-        book_rating_data = {}
-        if not request.data.get('rating'):
-            book_rating_data = {
-                'book_id': book.id,
-                'book_rater_id': request.user.id,
-                'book_rating': 0
-            }
-        else:
-            book_rating_data = {
-                'book_id': book.id,
-                'book_rater_id': request.user.id,
-                'book_rating': request.data.get('rating')
-            }
+        book_rating_data = {
+            'book_id': book.id,
+            'book_rater_id': request.user.id,
+            'book_rating': request.data.get('rating', 0)
+        }
 
-        book_rating_serializer = serializers.BookRatingSerializer(
-            data=book_rating_data)
+        book_rating_serializer = serializers.BookRatingSerializer(data=book_rating_data)
         book_rating_serializer.is_valid(raise_exception=True)
         book_rating_serializer.save()
 
-        return Response({'detail': 'The book add successfully.'}, status=status.HTTP_201_CREATED)
+        return Response({'detail': 'The book was added successfully.'}, status=status.HTTP_201_CREATED)
     
 
 class AddEditBook(generics.CreateAPIView) :
@@ -112,28 +110,31 @@ class AddEditBook(generics.CreateAPIView) :
         # First we check if the book has rating or not
         book_rating_qs = BookRating.objects.filter(
             book_id=book_id, book_rater_id=user_id)
-        if book_rating_qs.exists():
-            book_rating = book_rating_qs.first()
-            book_rating.book_rating = rating
-            book_rating.save()
-        else:
-            # Create BookRating object
-            book_rating_data = {
-                'book_id': book_id,
-                'book_rater_id': user_id,
-                'book_rating': rating
-            }
-            rating_serializer = serializers.BookRatingSerializer(data=book_rating_data)
-            rating_serializer.is_valid(raise_exception=True)
-            rating_serializer.save()
+        if rating:
+            if book_rating_qs.exists():
+                book_rating = book_rating_qs.first()
+                book_rating.book_rating = rating
+                book_rating.save()
+            else:
+                # Create BookRating object
+                book_rating_data = {
+                    'book_id': book_id,
+                    'book_rater_id': user_id,
+                    'book_rating': rating
+                }
+                rating_serializer = serializers.BookRatingSerializer(data=book_rating_data)
+                rating_serializer.is_valid(raise_exception=True)
+                rating_serializer.save()
         
         # check if a userbook exists or not
         # if it exists we will edit
         # You can delete the image field from the request if you don't want to change the image
         image = request.FILES.get('image')
+        add_flag = True
         user_book_qs = UserBook.objects.filter(
             book_id=book_id, book_owner_id=user_id)
         if user_book_qs.exists():
+            add_flag = False
             user_book = user_book_qs.first()
             if image:
                 user_book.book_image_url = image
@@ -164,10 +165,13 @@ class AddEditBook(generics.CreateAPIView) :
         book.description = request.data.get('description')
         book.year = request.data.get('year')
         book.ISBN = request.data.get('ISBN')
-        book.categories.set(request.data.get('categories'))
+
+        category_ids = request.data.get('categories').split(',')  # split string into list of ids
+        category_ids = [int(id.strip()) for id in category_ids]  # convert each id to an integer
+        book.categories.set(category_ids)  # set the categories for the book
         book.save()
 
-        add_flag = request.data.get('add_flag')
+        # add_flag = request.data.get('add_flag')
         detail = {}
         if add_flag:
             detail = {'detail': 'The Book has been added successfully.'}

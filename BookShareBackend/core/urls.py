@@ -8,6 +8,7 @@ urlpatterns = [
     path('top-rated/', views.TopRated.as_view(), name='top_rated'),
 
     path('book-search/', views.BookSearch.as_view(), name='book_search'),
+    path('book-general/<int:pk>/', views.BookGeneralDetails.as_view(), name='book_general_details'),
     path('categories/', views.CategoriesView.as_view(), name='get_categories'),
     path('add-new/', views.AddNewBookView.as_view(), name='add_new_book'),
     path('add-edit/', views.AddEditBook.as_view(), name='add_edit_book'),

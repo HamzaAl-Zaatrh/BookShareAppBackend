@@ -14,13 +14,20 @@ class BookSerializer(serializers.ModelSerializer):
     number_rating = serializers.StringRelatedField(
         source='calculate_number_rating')
     categories_name = serializers.StringRelatedField(source='categories', many=True, read_only=True)
+    categories = CategorySerializer(many=True, read_only=True)
 
     class Meta:
         model = Book
         exclude = ['owners']
-        extra_kwargs = {
-            'categories': {'write_only': True}
-        }
+        # extra_kwargs = {
+        #     'categories': {'write_only': True}
+        # }
+    
+    def create(self, validated_data):
+        category_ids = validated_data.pop('categories', [])
+        book = super().create(validated_data)
+        book.categories.set(category_ids)
+        return book
 
 # use for list book
 class UserBookSerializer(serializers.ModelSerializer):
