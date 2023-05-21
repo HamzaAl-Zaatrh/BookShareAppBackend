@@ -96,7 +96,7 @@ def registration_view(request):
     # send verification email
     user.generate_verification_token()
     subject = 'Verify Your Email - BookShare'
-    message = f'Hi {user.get_full_name()},\n\nPlease click on the link to verify your email: {request.build_absolute_uri("/account/verify-email/")}{user.verification_token}/\n\nBest regards,\nBookShare Team'
+    message = f'Hi {user.get_full_name()},\n\nPlease click on the link to verify your email: http://localhost:3000/?token={user.verification_token}\n\nBest regards,\nBookShare Team'
     from_email = settings.EMAIL_FROM
     recipient_list = [user.email]
     send_mail(subject, message, from_email, recipient_list)

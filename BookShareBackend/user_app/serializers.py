@@ -156,7 +156,7 @@ class PasswordResetSerializer(serializers.Serializer):
 
         # Send password reset email
         subject = 'Password Reset Request'
-        message = f'Hi {user.get_full_name()},\n\nYou have requested to reset your password. Please click on the following link to reset your password: http://127.0.0.1:8000/account/password-reset/{user.verification_token}/\n\nBest regards,\nBookShare Team'
+        message = f'Hi {user.get_full_name()},\n\nYou have requested to reset your password. Please click on the following link to reset your password: http://localhost:3000/resetpassword?token={user.verification_token}\n\nBest regards,\nBookShare Team'
         from_email = settings.EMAIL_FROM
         recipient_list = [user.email]
         send_mail(subject, message, from_email, recipient_list)
