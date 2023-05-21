@@ -65,13 +65,12 @@ class AddNewBookView(generics.CreateAPIView):
     serializer_class = serializers.BookSerializer
 
     def post(self, request, *args, **kwargs):
-        # Convert comma-separated string to list of integers
-        # categories_str = request.data.get('categories')
-        # categories_list = [int(cat) for cat in categories_str.split(',')]
 
         book_serializer = self.get_serializer(data=request.data)
         book_serializer.is_valid(raise_exception=True)
-        book = book_serializer.save(categories=request.data.get('categories', []))
+        
+        # Convert comma-separated string to list of integers
+        book = book_serializer.save(categories=request.data.get('categories', []).split(','))
 
         # Create UserBook object for the book owner
         user_book_data = {
