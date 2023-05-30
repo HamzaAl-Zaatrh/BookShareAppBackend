@@ -49,7 +49,6 @@ class BookSearch(generics.ListAPIView):
         user = self.request.user
         # return Book.objects.exclude(owners=user).distinct()
         return Book.objects.exclude(owners=user)
-    
 
 
 class BookGeneralDetails(generics.RetrieveAPIView):
@@ -68,9 +67,10 @@ class AddNewBookView(generics.CreateAPIView):
 
         book_serializer = self.get_serializer(data=request.data)
         book_serializer.is_valid(raise_exception=True)
-        
+
         # Convert comma-separated string to list of integers
-        book = book_serializer.save(categories=request.data.get('categories', []).split(','))
+        book = book_serializer.save(
+            categories=request.data.get('categories', []).split(','))
 
         # Create UserBook object for the book owner
         user_book_data = {
@@ -91,16 +91,17 @@ class AddNewBookView(generics.CreateAPIView):
             'book_rating': request.data.get('rating', 0)
         }
 
-        book_rating_serializer = serializers.BookRatingSerializer(data=book_rating_data)
+        book_rating_serializer = serializers.BookRatingSerializer(
+            data=book_rating_data)
         book_rating_serializer.is_valid(raise_exception=True)
         book_rating_serializer.save()
 
         return Response({'detail': 'The book was added successfully.'}, status=status.HTTP_201_CREATED)
-    
 
-class AddEditBook(generics.CreateAPIView) :
+
+class AddEditBook(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request, *args, **kwargs):
         user_id = request.user.id
         book_id = request.data.get('book_id')
@@ -121,10 +122,11 @@ class AddEditBook(generics.CreateAPIView) :
                     'book_rater_id': user_id,
                     'book_rating': rating
                 }
-                rating_serializer = serializers.BookRatingSerializer(data=book_rating_data)
+                rating_serializer = serializers.BookRatingSerializer(
+                    data=book_rating_data)
                 rating_serializer.is_valid(raise_exception=True)
                 rating_serializer.save()
-        
+
         # check if a userbook exists or not
         # if it exists we will edit
         # You can delete the image field from the request if you don't want to change the image
@@ -165,8 +167,10 @@ class AddEditBook(generics.CreateAPIView) :
         book.year = request.data.get('year')
         book.ISBN = request.data.get('ISBN')
 
-        category_ids = request.data.get('categories').split(',')  # split string into list of ids
-        category_ids = [int(id.strip()) for id in category_ids]  # convert each id to an integer
+        category_ids = request.data.get('categories').split(
+            ',')  # split string into list of ids
+        # convert each id to an integer
+        category_ids = [int(id.strip()) for id in category_ids]
         book.categories.set(category_ids)  # set the categories for the book
         book.save()
 
@@ -454,9 +458,15 @@ class NotificationRequest(generics.CreateAPIView):
             data=notification_data)
         notification_serializer.is_valid(raise_exception=True)
         notification_serializer.save()
+
+        # Delete the borrow request notification
+        notification = Notification.objects.filter(id = request.data.get('notification_id'))
+        notification.first().delete()
+
         return Response({'detail': 'The notification has been sent successfully.'}, status=status.HTTP_201_CREATED)
         # return Response(notification_serializer.data, status=status.HTTP_201_CREATED)
-    
+
+
 class NotificationList(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     queryset = Notification.objects.all()
@@ -464,8 +474,9 @@ class NotificationList(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return Notification.objects.filter(receiver_id = user)
-    
+        return Notification.objects.filter(receiver_id=user)
+
+
 class NotificationDestroy(generics.DestroyAPIView):
     permission_classes = [IsAuthenticated]
     queryset = Notification.objects.all()
@@ -478,24 +489,26 @@ class NotificationDestroy(generics.DestroyAPIView):
             return Response({'detail': 'You do not have permission to perform this action.'}, status=status.HTTP_403_FORBIDDEN)
         notification.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
+
 # To get the contact information you can use http://127.0.0.1:8000/account/<sender_id>/
 
 
 ############################## Recommender functionalities ##################################
 
-## version 1.0
+# version 1.0
 def get_recommendations(id, user_id):
     # Load UserBooks into a DataFrame
     user_books = pd.DataFrame.from_records(UserBook.objects.all().values(
         'id', 'book_owner_id', 'book_id', 'book_id__book_name', 'book_id__author', 'book_id__categories__category', 'book_image_url'))
-    
+
     ratings_df = pd.DataFrame.from_records(BookRating.objects.all().values())
 
     # get all the books rated by this user as a list
-    rated_books = ratings_df.loc[ratings_df['book_rater_id_id'] == user_id, 'book_id_id'].tolist()
-    
-    user_books['book_image_url'] = user_books['book_image_url'].apply(lambda x: 'http://127.0.0.1:8000/media/' + x)
+    rated_books = ratings_df.loc[ratings_df['book_rater_id_id']
+                                 == user_id, 'book_id_id'].tolist()
+
+    user_books['book_image_url'] = user_books['book_image_url'].apply(
+        lambda x: 'http://127.0.0.1:8000/media/' + x)
 
     # Renaming the columns
     user_books = user_books.rename(columns={
@@ -508,7 +521,7 @@ def get_recommendations(id, user_id):
     })
 
     # Grouping the data (Grouping categories)
-    # lambda function uses the filter() function 
+    # lambda function uses the filter() function
     # to remove any None values from the set before joining the remaining values with ', '.
     data = user_books.groupby('user_book_id').agg({
         'book_id': 'first',
@@ -526,14 +539,14 @@ def get_recommendations(id, user_id):
 
     # Function to convert all strings to lower case and strip names of spaces
     def clean_data(x):
-        #Check if auther exists. If not, return empty string
+        # Check if auther exists. If not, return empty string
         if isinstance(x, str):
             out = str.lower(x.replace(" ", ""))
             output_string = out.replace(',', ' ')
             return output_string
         else:
             return ''
-            
+
     # Apply clean_data function to your features.
     features = ['author', 'categories__category']
 
@@ -555,20 +568,24 @@ def get_recommendations(id, user_id):
     index = data.index[data['user_book_id'] == id][0]
     same_book_id = data[data['user_book_id'] == id]['book_id'].iloc[0]
 
-    similarity_series = pd.Series(cosine_sim[index]).sort_values(ascending=False)
+    similarity_series = pd.Series(
+        cosine_sim[index]).sort_values(ascending=False)
     list_index = similarity_series[similarity_series > 0.3].index.tolist()
 
     recommended_data = data.iloc[list_index]
 
     # drop the same books
-    recommended_data = recommended_data[~(recommended_data['book_id']==same_book_id)]
+    recommended_data = recommended_data[~(
+        recommended_data['book_id'] == same_book_id)]
 
     # drop all books that owned by this user
-    recommended_data = recommended_data[~recommended_data['book_id'].isin(owned_books)]
+    recommended_data = recommended_data[~recommended_data['book_id'].isin(
+        owned_books)]
 
     # drop all books that rated by this user
-    recommended_data = recommended_data[~recommended_data['book_id'].isin(rated_books)]
-    
+    recommended_data = recommended_data[~recommended_data['book_id'].isin(
+        rated_books)]
+
     # drop duplicate books
     recommended_data.drop_duplicates(['book_id'], keep='last', inplace=True)
 
@@ -577,10 +594,11 @@ def get_recommendations(id, user_id):
         recommended_data = recommended_data[:10]
 
     # convert dataframe to dictionary
-    # We used the 'records' option in the to_dict() method 
+    # We used the 'records' option in the to_dict() method
     # to convert the DataFrame to a list of dictionaries, where each dictionary represents a row in the DataFrame.
     recommended_data_dict = recommended_data.to_dict('records')
     return recommended_data_dict
+
 
 class MoreLikeThisView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -595,7 +613,7 @@ class MoreLikeThisView(generics.ListAPIView):
         user_book_qs = UserBook.objects.filter(id=user_book_id)
         if not user_book_qs.exists():
             return Response({'detail': 'The Book does not exist.'}, status=status.HTTP_404_NOT_FOUND)
-        
+
         data = get_recommendations(user_book_id, user_id)
         return Response(data, status=status.HTTP_200_OK)
 
@@ -608,19 +626,20 @@ class RecommendedForYou(generics.ListAPIView):
         user_id = request.user.id
 
         # We use "order_by('?')" to randomly order the books and only the first 5 books are selected
-        rated_books = BookRating.objects.filter(book_rater_id=user_id, book_rating__gt=6).order_by('?')[:5]
+        rated_books = BookRating.objects.filter(
+            book_rater_id=user_id, book_rating__gt=6).order_by('?')[:5]
 
         if rated_books.count() == 0:
             return Response({'detail': "You need to rate more books to get our Recommendations."}, status=status.HTTP_404_NOT_FOUND)
             # return Response({'detail': "You need to rate at least 5 books to get our Recommendations."}, status=status.HTTP_404_NOT_FOUND)
-        
+
         # List of dictionaries
         data = []
         for rated_book in rated_books:
             # get the id of the book
             book_id = rated_book.book_id
             user_book = UserBook.objects.filter(book_id=book_id).first()
-            
+
             if user_book:
                 user_book_id = user_book.id
                 # check if there are any recommendations for this book
@@ -631,7 +650,7 @@ class RecommendedForYou(generics.ListAPIView):
 
         if not data:
             return Response({'detail': "We're sorry, but we don't have any book recommendations for you yet."}, status=status.HTTP_404_NOT_FOUND)
-        
+
         # drop the duplicate books
         df = pd.DataFrame(data)
         df.drop_duplicates(['book_id'], keep='first', inplace=True)
@@ -672,21 +691,20 @@ class TopRated(generics.ListAPIView):
             R = x['avg_rating']
             # Calculation based on the IMDB formula
             return (v/(v+m) * R) + (m/(m+v) * C)
-        
+
         # Define a new feature 'score' and calculate its value with `weighted_rating()`
         q_books['score'] = q_books.apply(weighted_rating, axis=1)
-        #Sort movies based on score calculated above
+        # Sort movies based on score calculated above
         q_books = q_books.sort_values('score', ascending=False)[:10]
-
 
         def get_user_book_id(row):
             userbook = UserBook.objects.filter(book_id=row['id']).first()
             return userbook.id
-        
+
         def get_image(row):
             userbook = UserBook.objects.filter(book_id=row['id']).first()
             return 'http://127.0.0.1:8000' + userbook.book_image_url.url
-        
+
         q_books['user_book_id'] = q_books.apply(get_user_book_id, axis=1)
         q_books['image_url'] = q_books.apply(get_image, axis=1)
 
