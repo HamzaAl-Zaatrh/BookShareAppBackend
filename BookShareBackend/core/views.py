@@ -459,9 +459,10 @@ class NotificationRequest(generics.CreateAPIView):
         notification_serializer.is_valid(raise_exception=True)
         notification_serializer.save()
 
-        # Delete the borrow request notification
-        notification = Notification.objects.filter(id = request.data.get('notification_id'))
-        notification.first().delete()
+        if not(type == 'borrow_request'):
+            # Delete the borrow request notification
+            notification = Notification.objects.filter(id = request.data.get('notification_id'))
+            notification.first().delete()
 
         return Response({'detail': 'The notification has been sent successfully.'}, status=status.HTTP_201_CREATED)
         # return Response(notification_serializer.data, status=status.HTTP_201_CREATED)
